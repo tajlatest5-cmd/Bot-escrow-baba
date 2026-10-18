@@ -1,16 +1,15 @@
 """
 Don Escrow Service bot - single file.
 
-Environment variables (hosting panel mein alag-alag add karo):
-  BOT_TOKEN        BotFather se bot token
-  API_ID           my.telegram.org se (sirf number)
-  API_HASH         my.telegram.org se
-  USERBOT_SESSION  gen_session.py se mili string
-  LOG_CHAT_ID      (optional) naye deal ki info is chat mein aayegi
-  INVITE_LIMIT     (optional) ek invite link par max log, default 3
+Sirf 2 files: bot.py + requirements.txt
+
+1) Neeche CONFIG mein values paste karo (ya hosting ke Variables mein daalo).
+2) Session string nikalne ke liye (ek baar, apne computer par):  python bot.py session
+3) Bot chalane ke liye:  python bot.py
 """
 import os
 import sys
+import asyncio
 import time
 import html
 import uuid
@@ -30,12 +29,18 @@ from telethon.tl.functions.messages import ExportChatInviteRequest
 logging.basicConfig(level=logging.INFO)
 
 # ======================= CONFIG =======================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14").strip()
-API_ID = os.getenv("API_ID", "34145046").strip()
-API_HASH = os.getenv("API_HASH", "9eef1f689e6bde55fa0240660f7222ca").strip()
-USERBOT_SESSION = os.getenv("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=").strip()
-LOG_CHAT_ID = os.getenv("LOG_CHAT_ID", "").strip()
-INVITE_LIMIT = int(os.getenv("INVITE_LIMIT", "3"))
+def cfg(name: str, default: str = "") -> str:
+    """Pehle hosting Variable dekhta hai, nahi mila to neeche likhi value."""
+    return (os.getenv(name) or default).strip()
+
+
+# Yahan quotes ke andar values paste kar sakte ho:
+BOT_TOKEN = cfg("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14")          # BotFather se token
+API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf number)
+API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
+USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
+LOG_CHAT_ID = cfg("LOG_CHAT_ID", "-1004382956557")      # optional: naye deal ki info is chat mein
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
@@ -252,8 +257,22 @@ async def post_shutdown(app: Application):
 
 
 # ======================= MAIN =======================
+async def make_session():
+    """Userbot account login karke USERBOT_SESSION string print karta hai."""
+    api_id = int(input("API_ID: ").strip())
+    api_hash = input("API_HASH: ").strip()
+    c = TelegramClient(StringSession(), api_id, api_hash)
+    await c.start()  # phone number aur OTP puchega
+    print("\nUSERBOT_SESSION =", c.session.save())
+    await c.disconnect()
+
+
 def main():
     global client
+
+    if len(sys.argv) > 1 and sys.argv[1] == "session":
+        asyncio.run(make_session())
+        return
 
     missing = [
         name for name, val in [
