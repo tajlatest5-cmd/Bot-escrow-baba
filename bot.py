@@ -1,6 +1,19 @@
+"""
+Don Escrow Service bot - single file.
+
+Environment variables (hosting panel mein alag-alag add karo):
+  BOT_TOKEN        BotFather se bot token
+  API_ID           my.telegram.org se (sirf number)
+  API_HASH         my.telegram.org se
+  USERBOT_SESSION  gen_session.py se mili string
+  LOG_CHAT_ID      (optional) naye deal ki info is chat mein aayegi
+  INVITE_LIMIT     (optional) ek invite link par max log, default 3
+"""
 import os
+import sys
 import time
 import html
+import uuid
 import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -9,21 +22,106 @@ from telegram.error import BadRequest
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, ContextTypes,
 )
-
-from emoji import e, eid
-import userbot
+from telethon import TelegramClient, utils
+from telethon.sessions import StringSession
+from telethon.tl.functions.channels import CreateChannelRequest, InviteToChannelRequest
+from telethon.tl.functions.messages import ExportChatInviteRequest
 
 logging.basicConfig(level=logging.INFO)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14")
-LOG_CHAT_ID = os.getenv("LOG_CHAT_ID")  # optional: naye deal ki info yahan aayegi
+# ======================= CONFIG =======================
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14").strip()
+API_ID = os.getenv("API_ID", "34145046").strip()
+API_HASH = os.getenv("API_HASH", "9eef1f689e6bde55fa0240660f7222ca").strip()
+USERBOT_SESSION = os.getenv("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=").strip()
+LOG_CHAT_ID = os.getenv("LOG_CHAT_ID", "").strip()
+INVITE_LIMIT = int(os.getenv("INVITE_LIMIT", "3"))
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 HTML = ParseMode.HTML
 
+# ======================= CUSTOM EMOJI =======================
+# name -> (custom_emoji_id, fallback emoji). Naya emoji add karna ho to ek line jodo.
+EMOJI = {
+    "check":     ("5776375003280838798", "✅"),
+    "cross":     ("5778527486270770928", "❌"),
+    "link":      ("5877465816030515018", "🔗"),
+    "shield":    ("5926783847453692661", "🛡"),
+    "lock":      ("5832546462478635761", "🔒"),
+    "unlock":    ("6034962180875490251", "🔓"),
+    "key":       ("6005570495603282482", "🔑"),
+    "user":      ("5771887475421090729", "👤"),
+    "chat":      ("5886666250158870040", "💬"),
+    "bot":       ("5931415565955503486", "🤖"),
+    "warning":   ("5881702736843511327", "⚠️"),
+    "alert":     ("5879813604068298387", "❗️"),
+    "info":      ("5879785854284599288", "ℹ️"),
+    "pin":       ("5908961403917570106", "📌"),
+    "star":      ("5958376256788502078", "⭐️"),
+    "fire":      ("6008118472066732010", "🔥"),
+    "gift":      ("6032937473162614352", "🎁"),
+    "party":     ("5994502837327892086", "🎉"),
+    "cheers":    ("5967688845397855939", "🥂"),
+    "phone":     ("5897567714674741148", "📞"),
+    "support":   ("5906995262378741881", "🙋"),
+    "briefcase": ("5967389567781703494", "💼"),
+    "clock":     ("5776213190387961618", "🕓"),
+    "chart":     ("5776219138917668486", "📈"),
+    "tag":       ("5854776233950188167", "🏷"),
+    "news":      ("5886506997066502636", "📰"),
+    "globe":     ("5879585266426973039", "🌐"),
+    "bolt":      ("5843553939672274145", "⚡️"),
+    "thumbsup":  ("5992199545151295755", "👍"),
+    "heart":     ("5994453058656931434", "❤️"),
+    "search":    ("5874960879434338403", "🔎"),
+    "file":      ("5839323457015256759", "📄"),
+    "folder":    ("5875206779196935950", "📁"),
+    "dice":      ("5960608239623082921", "🎲"),
+    "plus":      ("5877219383691972108", "➕"),
+    "arrow":     ("5877468380125990242", "➡️"),
+}
 
-# ---------- texts ----------
+
+def e(name: str) -> str:
+    """Message text ke liye custom emoji (HTML)."""
+    cid, fallback = EMOJI[name]
+    return f'<tg-emoji emoji-id="{cid}">{fallback}</tg-emoji>'
+
+
+def eid(name: str) -> str:
+    """Button icon ke liye raw custom emoji id."""
+    return EMOJI[name][0]
+
+
+# ======================= USERBOT (group creator) =======================
+# Telegram bots khud group nahi bana sakte, isliye ek dedicated user account use hota hai.
+client = None  # main() mein banega
+
+
+async def create_deal_group(bot_username: str, label: str):
+    """Naya private group banata hai. Returns (bot_chat_id, invite_link, deal_id)."""
+    deal_id = uuid.uuid4().hex[:6].upper()
+    result = await client(CreateChannelRequest(
+        title=f"{label} Deal #{deal_id}",
+        about="Don Escrow Service - private deal group",
+        megagroup=True,
+    ))
+    channel = result.chats[0]
+
+    bot_entity = await client.get_entity(bot_username)
+    await client(InviteToChannelRequest(channel, [bot_entity]))
+    await client.edit_admin(
+        channel, bot_entity,
+        change_info=True, delete_messages=True, ban_users=True,
+        invite_users=True, pin_messages=True,
+    )
+
+    invite = await client(ExportChatInviteRequest(channel, usage_limit=INVITE_LIMIT))
+    return utils.get_peer_id(channel), invite.link, deal_id
+
+
+# ======================= TEXTS =======================
 def start_text() -> str:
     return (
         f"{e('party')} <b>Welcome to Don Escrow Service</b> {e('party')}\n\n"
@@ -38,7 +136,7 @@ def select_text() -> str:
     return f"{e('shield')} <b>Please select your escrow type from below.</b>"
 
 
-# ---------- keyboards ----------
+# ======================= KEYBOARDS =======================
 def btn(label, icon, icons, url=None, cb=None) -> InlineKeyboardButton:
     kw = {"api_kwargs": {"icon_custom_emoji_id": eid(icon)}} if icons else {}
     return InlineKeyboardButton(label, url=url, callback_data=cb, **kw)
@@ -61,7 +159,7 @@ def type_kb(icons: bool) -> InlineKeyboardMarkup:
 
 
 async def render(send):
-    """Custom emoji icons ke saath try karo, fail ho to plain buttons."""
+    """Pehle custom emoji icons ke saath try karo, fail ho to plain buttons."""
     for icons in (True, False):
         try:
             return await send(icons)
@@ -69,7 +167,7 @@ async def render(send):
             logging.warning("send failed (icons=%s): %s", icons, err)
 
 
-# ---------- handlers ----------
+# ======================= HANDLERS =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await render(lambda icons: update.message.reply_text(
         start_text(), parse_mode=HTML, reply_markup=start_kb(icons),
@@ -102,7 +200,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         bot_username = (await context.bot.get_me()).username
-        chat_id, link, deal_id = await userbot.create_deal_group(bot_username, label)
+        chat_id, link, deal_id = await create_deal_group(bot_username, label)
     except Exception:
         logging.exception("group creation failed")
         context.user_data["last_deal"] = 0
@@ -129,7 +227,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode=HTML,
         )
     except Exception:
-        logging.exception("group welcome failed")
+        logging.exception("group welcome message failed")
 
     if LOG_CHAT_ID:
         try:
@@ -139,18 +237,37 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode=HTML, disable_web_page_preview=True,
             )
         except Exception:
-            logging.exception("log send failed")
+            logging.exception("log message failed")
 
 
 async def post_init(app: Application):
-    await userbot.start()
+    await client.connect()
+    if not await client.is_user_authorized():
+        raise RuntimeError("USERBOT_SESSION invalid hai. gen_session.py dobara chalao.")
+    logging.info("Userbot connected.")
 
 
 async def post_shutdown(app: Application):
-    await userbot.client.disconnect()
+    await client.disconnect()
 
 
+# ======================= MAIN =======================
 def main():
+    global client
+
+    missing = [
+        name for name, val in [
+            ("BOT_TOKEN", BOT_TOKEN), ("API_ID", API_ID),
+            ("API_HASH", API_HASH), ("USERBOT_SESSION", USERBOT_SESSION),
+        ] if not val
+    ]
+    if missing:
+        sys.exit("Ye environment variables missing hain: " + ", ".join(missing))
+    if not API_ID.isdigit():
+        sys.exit("API_ID sirf number hona chahiye (jaise 12345678).")
+
+    client = TelegramClient(StringSession(USERBOT_SESSION), int(API_ID), API_HASH)
+
     app = (
         Application.builder().token(BOT_TOKEN)
         .post_init(post_init).post_shutdown(post_shutdown).build()
