@@ -15,7 +15,7 @@ import userbot
 
 logging.basicConfig(level=logging.INFO)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14")
 LOG_CHAT_ID = os.getenv("LOG_CHAT_ID")  # optional: naye deal ki info yahan aayegi
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 
