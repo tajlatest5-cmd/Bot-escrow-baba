@@ -1,12 +1,4 @@
-"""
-Don Escrow Service bot - single file.
 
-Sirf 2 files: bot.py + requirements.txt
-
-1) Neeche CONFIG mein values paste karo (ya hosting ke Variables mein daalo).
-2) Session string nikalne ke liye (ek baar, apne computer par):  python bot.py session
-3) Bot chalane ke liye:  python bot.py
-"""
 import os
 import sys
 import asyncio
