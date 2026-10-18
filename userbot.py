@@ -8,8 +8,8 @@ from telethon.sessions import StringSession
 from telethon.tl.functions.channels import CreateChannelRequest, InviteToChannelRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
 
-API_ID = int(os.getenv("API_ID", "0"))
-API_HASH = os.getenv("API_HASH", "")
+API_ID = int(os.getenv("34145046, "0"))
+API_HASH = os.getenv("9eef1f689e6bde55fa0240660f7222ca", "")
 SESSION = os.getenv("USERBOT_SESSION", "")
 INVITE_LIMIT = int(os.getenv("INVITE_LIMIT", "3"))  # link max kitne log use kar sakte
 
