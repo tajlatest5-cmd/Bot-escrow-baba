@@ -12,7 +12,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
-    ContextTypes, filters,
+    ChatMemberHandler, ContextTypes, filters,
 )
 from telethon import TelegramClient, utils
 from telethon.sessions import StringSession
@@ -33,7 +33,7 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "12457885433"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 # Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
 ESCROW_USERNAMES = {
@@ -99,7 +99,8 @@ def eid(name: str) -> str:
 
 # ======================= USERBOT (group creator) =======================
 # Telegram bots khud group nahi bana sakte, isliye ek dedicated user account use hota hai.
-client = None  # main() mein banega
+client = None  # post_init mein banega
+USERBOT_ID = None  # userbot account ki id (ginti mein nahi aata)
 
 
 async def create_deal_group(bot_username: str, label: str):
@@ -260,9 +261,8 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logging.exception("log message failed")
 
 
-async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def register_join(chat, users, context: ContextTypes.DEFAULT_TYPE):
     """Buyer aur seller (2 log) join hote hi ESCROW DEAL form bhejta hai (ek baar)."""
-    chat = update.effective_chat
     if not chat or "Deal #" not in (chat.title or ""):
         return
 
@@ -271,11 +271,12 @@ async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if st["sent"]:
         return
 
-    for m in update.message.new_chat_members:
-        if m.is_bot or (m.username or "").lower() in ESCROW_USERNAMES:
-            continue  # bot aur escrow ko buyer/seller nahi ginte
+    for m in users:
+        if m.is_bot or m.id == USERBOT_ID or (m.username or "").lower() in ESCROW_USERNAMES:
+            continue  # bot, userbot aur escrow ko buyer/seller nahi ginte
         st["humans"].add(m.id)
 
+    logging.info("deal %s humans=%s", chat.id, st["humans"])
     if len(st["humans"]) >= 2:
         st["sent"] = True
         form = await context.bot.send_message(chat.id, deal_form_text())
@@ -286,12 +287,32 @@ async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Service message 'joined the group' se (agar Telegram bhejta hai)."""
+    await register_join(update.effective_chat, update.message.new_chat_members, context)
+
+
+async def on_member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """chat_member update se: invite link se join karne par bhi pakad leta hai."""
+    cm = update.chat_member
+    if not cm:
+        return
+    joined = (
+        cm.old_chat_member.status in ("left", "kicked")
+        and cm.new_chat_member.status in ("member", "administrator", "creator", "restricted")
+    )
+    if joined:
+        await register_join(update.effective_chat, [cm.new_chat_member.user], context)
+
+
 async def post_init(app: Application):
     global client
     client = TelegramClient(StringSession(USERBOT_SESSION), int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
         raise RuntimeError("USERBOT_SESSION invalid hai. gen_session.py dobara chalao.")
+    global USERBOT_ID
+    USERBOT_ID = (await client.get_me()).id
     logging.info("Userbot connected.")
 
 
@@ -312,7 +333,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v7 starting ===")
+    logging.info("=== Don Escrow bot v8 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
@@ -337,7 +358,8 @@ def main():
     app.add_handler(CallbackQueryHandler(escrow, pattern=r"^escrow$"))
     app.add_handler(CallbackQueryHandler(deal, pattern=r"^deal:(p2p|product)$"))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_join))
-    app.run_polling()
+    app.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER))
+    app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
