@@ -8,9 +8,9 @@ from telethon.sessions import StringSession
 from telethon.tl.functions.channels import CreateChannelRequest, InviteToChannelRequest
 from telethon.tl.functions.messages import ExportChatInviteRequest
 
-API_ID = int(os.getenv("API_ID", "0"))
-API_HASH = os.getenv("API_HASH", "")
-SESSION = os.getenv("USERBOT_SESSION", "")
+API_ID = int(os.getenv("34145046", "0"))
+API_HASH = os.getenv("9eef1f689e6bde55fa0240660f7222ca", "")
+SESSION = os.getenv("1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=", "")
 INVITE_LIMIT = int(os.getenv("INVITE_LIMIT", "3"))  # link max kitne log use kar sakte
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
