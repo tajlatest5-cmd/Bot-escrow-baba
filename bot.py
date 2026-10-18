@@ -1,165 +1,297 @@
 import os
-import time
-import html
+import re
+import asyncio
 import logging
+import time
+from datetime import datetime
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
-from telegram.error import BadRequest
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, ContextTypes,
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
 )
 
-from emoji import e, eid
-import userbot
+from telethon import TelegramClient, utils
+from telethon.sessions import StringSession
+from telethon.tl.functions.messages import (
+    CreateChatRequest,
+    ExportChatInviteRequest,
+)
+
+# ---------- CONFIGURATION ----------
+
+BOT_TOKEN = os.environ["8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14"]
+API_ID = int(os.environ["34145046"]
+API_HASH = os.environ["9eef1f689e6bde55fa0240660f7222ca"]
+USER_SESSION = os.environ["1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA="]
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(name)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14")
-LOG_CHAT_ID = os.getenv("LOG_CHAT_ID")  # optional: naye deal ki info yahan aayegi
-COOLDOWN = 60  # seconds, ek user ke do group ke beech
+# Connected Telegram account creates the groups.
+client = TelegramClient(
+    StringSession(USER_SESSION),
+    API_ID,
+    API_HASH,
+)
 
-DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
-HTML = ParseMode.HTML
+DEAL_TYPES = {
+    "p2p": "P2P",
+    "product": "Product Deal",
+}
 
-
-# ---------- texts ----------
-def start_text() -> str:
-    return (
-        f"{e('party')} <b>Welcome to Don Escrow Service</b> {e('party')}\n\n"
-        f"{e('shield')} Escrow : @xDonEscrow {e('check')}\n"
-        f"{e('chat')} P2P Group : @PW_P2P {e('check')}\n"
-        f"{e('info')} Detail : @BSR_ShoppiE {e('check')}\n"
-        f"{e('support')} Customer help : @PW_AssistBot {e('check')}"
-    )
-
-
-def select_text() -> str:
-    return f"{e('shield')} <b>Please select your escrow type from below.</b>"
+# Simple in-memory cooldown: one request per user per 10 minutes.
+last_request = {}
+COOLDOWN_SECONDS = 600
 
 
-# ---------- keyboards ----------
-def btn(label, icon, icons, url=None, cb=None) -> InlineKeyboardButton:
-    kw = {"api_kwargs": {"icon_custom_emoji_id": eid(icon)}} if icons else {}
-    return InlineKeyboardButton(label, url=url, callback_data=cb, **kw)
+# ---------- START COMMAND ----------
 
-
-def start_kb(icons: bool) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [btn("Escrow", "shield", icons, cb="escrow")],
-        [btn("P2P Group", "chat", icons, url="https://t.me/PW_P2P")],
-        [btn("Detail", "info", icons, url="https://t.me/BSR_ShoppiE")],
-        [btn("Customer help", "support", icons, url="https://t.me/PW_AssistBot")],
-    ])
-
-
-def type_kb(icons: bool) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([[
-        btn("P2P", "user", icons, cb="deal:p2p"),
-        btn("Product Deal", "tag", icons, cb="deal:product"),
-    ]])
-
-
-async def render(send):
-    """Custom emoji icons ke saath try karo, fail ho to plain buttons."""
-    for icons in (True, False):
-        try:
-            return await send(icons)
-        except BadRequest as err:
-            logging.warning("send failed (icons=%s): %s", icons, err)
-
-
-# ---------- handlers ----------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await render(lambda icons: update.message.reply_text(
-        start_text(), parse_mode=HTML, reply_markup=start_kb(icons),
-        disable_web_page_preview=True,
-    ))
-
-
-async def escrow(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    await render(lambda icons: q.message.reply_text(
-        select_text(), parse_mode=HTML, reply_markup=type_kb(icons),
-    ))
-
-
-async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    user = q.from_user
-    label = DEAL_TYPES[q.data.split(":")[1]]
-
-    if time.time() - context.user_data.get("last_deal", 0) < COOLDOWN:
-        await q.answer("Please wait a minute before creating another group.", show_alert=True)
-        return
-    context.user_data["last_deal"] = time.time()
-
-    await q.answer("Creating your group...")
-    status = await q.message.reply_text(
-        f"{e('clock')} Creating your <b>{label}</b> group, please wait...", parse_mode=HTML,
-    )
-
-    try:
-        bot_username = (await context.bot.get_me()).username
-        chat_id, link, deal_id = await userbot.create_deal_group(bot_username, label)
-    except Exception:
-        logging.exception("group creation failed")
-        context.user_data["last_deal"] = 0
-        await status.edit_text(
-            f"{e('cross')} Group could not be created. Please try again or contact @PW_AssistBot.",
-            parse_mode=HTML,
-        )
-        return
-
-    await render(lambda icons: status.edit_text(
-        f"{e('check')} <b>{label} group is ready!</b>\n\n"
-        f"Join using the button below and add the other party.",
-        parse_mode=HTML,
-        reply_markup=InlineKeyboardMarkup([[btn("Join Group", "link", icons, url=link)]]),
-    ))
-
-    mention = f'<a href="tg://user?id={user.id}">{html.escape(user.first_name or "User")}</a>'
-    try:
-        await context.bot.send_message(
-            chat_id,
-            f"{e('shield')} <b>{label} Deal #{deal_id}</b>\n\n"
-            f"{e('user')} Created by: {mention}\n"
-            f"{e('info')} Please add the other party and share the deal details here.",
-            parse_mode=HTML,
-        )
-    except Exception:
-        logging.exception("group welcome failed")
-
-    if LOG_CHAT_ID:
-        try:
-            await context.bot.send_message(
-                LOG_CHAT_ID,
-                f"New {label} deal #{deal_id} by {mention} (id {user.id})\n{link}",
-                parse_mode=HTML, disable_web_page_preview=True,
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "P2P",
+                callback_data="p2p",
             )
-        except Exception:
-            logging.exception("log send failed")
+        ],
+        [
+            InlineKeyboardButton(
+                "Product Deal",
+                callback_data="product",
+            )
+        ],
+    ]
 
-
-async def post_init(app: Application):
-    await userbot.start()
-
-
-async def post_shutdown(app: Application):
-    await userbot.client.disconnect()
-
-
-def main():
-    app = (
-        Application.builder().token(BOT_TOKEN)
-        .post_init(post_init).post_shutdown(post_shutdown).build()
+    welcome = (
+        "Welcome to Don Escrow Service\n\n"
+        "Escrow : @xDonEscrow\n"
+        "P2P Group : @PW_P2P\n"
+        "Detail : @BSR_ShoppiE\n"
+        "Customer help : @PW_AssistBot\n\n"
+        "Please select your escrow type from below."
     )
+
+    await update.effective_message.reply_text(
+        welcome,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+# ---------- SELECT DEAL TYPE ----------
+
+async def select_type(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    query = update.callback_query
+    await query.answer()
+
+    deal_type = DEAL_TYPES.get(query.data)
+
+    if deal_type is None:
+        await query.message.reply_text(
+            "Invalid selection. Send /start to try again."
+        )
+        return
+
+    context.user_data["deal_type"] = deal_type
+
+    await query.message.reply_text(
+        f"Selected: {deal_type}\n\n"
+        "Send the buyer and seller usernames in one message.\n\n"
+        "Example:\n"
+        "@buyer_username @seller_username\n\n"
+        "Both usernames must belong to the correct participants."
+    )
+
+
+# ---------- CREATE PRIVATE GROUP ----------
+
+async def create_deal_group(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+):
+    deal_type = context.user_data.get("deal_type")
+
+    if not deal_type:
+        return
+
+    message = update.effective_message
+    telegram_user = update.effective_user
+
+    if not telegram_user:
+        return
+
+    # Prevent rapid repeated requests from the same user.
+    now = time.monotonic()
+    previous = last_request.get(telegram_user.id, 0)
+
+    if now - previous < COOLDOWN_SECONDS:
+        remaining = int(
+            COOLDOWN_SECONDS - (now - previous)
+        )
+        await message.reply_text(
+            f"Please wait {remaining} seconds before another request."
+        )
+        return
+
+    usernames = re.findall(
+        r"(?<!\w)@[A-Za-z][A-Za-z0-9_]{4,31}",
+        message.text or "",
+    )
+
+    usernames = list(dict.fromkeys(usernames))
+
+if len(usernames) != 2:
+        await message.reply_text(
+            "Please send exactly two usernames.\n\n"
+            "Example: @buyer_username @seller_username"
+        )
+        return
+
+    # Set cooldown before making Telegram API requests.
+    last_request[telegram_user.id] = now
+
+    await message.reply_text(
+        "Creating your private escrow group. Please wait..."
+    )
+
+    try:
+        async with asyncio.timeout(60):
+            # Resolve usernames through the connected account.
+            buyer_entity = await client.get_entity(usernames[0])
+            seller_entity = await client.get_entity(usernames[1])
+
+            if not getattr(buyer_entity, "username", None):
+                raise ValueError("Buyer username could not be verified.")
+
+            if not getattr(seller_entity, "username", None):
+                raise ValueError("Seller username could not be verified.")
+
+            buyer = utils.get_input_user(buyer_entity)
+            seller = utils.get_input_user(seller_entity)
+
+            title = (
+                f"Don Escrow | {deal_type} | "
+                f"{datetime.now().strftime('%d-%m-%Y %H:%M')}"
+            )
+
+            # Create a new Telegram group.
+            result = await client(
+                CreateChatRequest(
+                    users=[buyer, seller],
+                    title=title,
+                )
+            )
+
+            chats = getattr(result, "chats", [])
+
+            if not chats:
+                raise RuntimeError(
+                    "Telegram did not return the created group."
+                )
+
+            group = chats[0]
+
+            # Export an invite link for the new group.
+            invite = await client(
+                ExportChatInviteRequest(peer=group)
+            )
+
+            context.user_data.pop("deal_type", None)
+
+            await message.reply_text(
+                "PRIVATE ESCROW GROUP CREATED\n\n"
+                f"Deal Type: {deal_type}\n"
+                f"Buyer: @{buyer_entity.username}\n"
+                f"Seller: @{seller_entity.username}\n\n"
+                "Group Invite Link:\n"
+                f"{invite.link}\n\n"
+                "Share this link only with the intended participants."
+            )
+
+    except asyncio.TimeoutError:
+        logger.warning("Group creation timed out.")
+
+        await message.reply_text(
+            "The request timed out. Check Telegram and try again later."
+        )
+
+    except Exception:
+        # Keep private session details out of user-facing messages.
+        logger.exception("Private group creation failed.")
+
+        await message.reply_text(
+            "Unable to create the group or generate its invite link.\n\n"
+            "Check the usernames and Telegram account restrictions. "
+            "If a group was already created, check your Telegram chats "
+            "before retrying."
+        )
+
+
+# ---------- APPLICATION ----------
+
+async def main():
+    await client.connect()
+
+    if not await client.is_user_authorized():
+        await client.disconnect()
+        raise RuntimeError(
+            "USER_SESSION is not authorized. Generate a new session."
+        )
+
+    app = Application.builder().token(BOT_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(escrow, pattern=r"^escrow$"))
-    app.add_handler(CallbackQueryHandler(deal, pattern=r"^deal:(p2p|product)$"))
-    app.run_polling()
 
+    app.add_handler(
+        CallbackQueryHandler(
+            select_type,
+            pattern=r"^(p2p|product)$",
+        )
+    )
 
-if __name__ == "__main__":
-    main()
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT
+            & ~filters.COMMAND
+            & filters.ChatType.PRIVATE,
+            create_deal_group,
+        )
+    )
+
+    try:
+        await app.initialize()
+        await app.start()
+
+        if app.updater is None:
+            raise RuntimeError("Telegram polling is unavailable.")
+
+        await app.updater.start_polling()
+
+        logger.info("Don Escrow Service bot is running.")
+
+        await asyncio.Event().wait()
+
+    finally:
+        if app.updater and app.updater.running:
+            await app.updater.stop()
+
+        await app.stop()
+        await app.shutdown()
+        await client.disconnect()
+
+if name == "main":
+    asyncio.run(main())
