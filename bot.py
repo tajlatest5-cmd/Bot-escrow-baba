@@ -33,7 +33,7 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "1000000"))  # ek link par max log
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 # Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
 ESCROW_USERNAMES = {
@@ -129,9 +129,8 @@ def start_text() -> str:
     return (
         f"{e('party')} <b>Welcome to Don Escrow Service</b> {e('party')}\n\n"
         f"{e('shield')} Escrow : @xDonEscrow {e('check')}\n"
-        f"{e('chat')} P2P Group : @PW_P2P {e('check')}\n"
-        f"{e('info')} Detail : @BSR_ShoppiE {e('check')}\n"
-        f"{e('support')} Customer help : @PW_AssistBot {e('check')}"
+        f"{e('info')} Detail : @ZENOx0G {e('check')}\n"
+        f"{e('support')} Customer help : @XdonZ {e('check')}"
     )
 
 
@@ -161,9 +160,8 @@ def btn(label, icon, icons, url=None, cb=None) -> InlineKeyboardButton:
 def start_kb(icons: bool) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [btn("Escrow", "shield", icons, cb="escrow")],
-        [btn("P2P Group", "chat", icons, url="https://t.me/PW_P2P")],
-        [btn("Detail", "info", icons, url="https://t.me/BSR_ShoppiE")],
-        [btn("Customer help", "support", icons, url="https://t.me/PW_AssistBot")],
+        [btn("Detail", "info", icons, url="https://t.me/ZENOx0G")],
+        [btn("Customer help", "support", icons, url="https://t.me/XdonZ")],
     ])
 
 
@@ -217,11 +215,17 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         bot_username = (await context.bot.get_me()).username
         chat_id, link, deal_id = await create_deal_group(bot_username, label)
-    except Exception:
+    except Exception as err:
         logging.exception("group creation failed")
         context.user_data["last_deal"] = 0
+        if LOG_CHAT_ID:
+            try:
+                await context.bot.send_message(
+                    LOG_CHAT_ID, f"Group creation error: {type(err).__name__}: {err}"[:3500])
+            except Exception:
+                pass
         await status.edit_text(
-            f"{e('cross')} Group could not be created. Please try again or contact @PW_AssistBot.",
+            f"{e('cross')} Group could not be created. Please try again or contact @XdonZ.",
             parse_mode=HTML,
         )
         return
@@ -280,6 +284,8 @@ async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def post_init(app: Application):
+    global client
+    client = TelegramClient(StringSession(USERBOT_SESSION), int(API_ID), API_HASH)
     await client.connect()
     if not await client.is_user_authorized():
         raise RuntimeError("USERBOT_SESSION invalid hai. gen_session.py dobara chalao.")
@@ -303,7 +309,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v4 starting ===")
+    logging.info("=== Don Escrow bot v6 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
@@ -319,8 +325,6 @@ def main():
         sys.exit("Ye environment variables missing hain: " + ", ".join(missing))
     if not API_ID.isdigit():
         sys.exit("API_ID sirf number hona chahiye (jaise 12345678).")
-
-    client = TelegramClient(StringSession(USERBOT_SESSION), int(API_ID), API_HASH)
 
     app = (
         Application.builder().token(BOT_TOKEN)
