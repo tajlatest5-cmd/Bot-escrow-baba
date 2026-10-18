@@ -35,12 +35,12 @@ def cfg(name: str, default: str = "") -> str:
 
 
 # Yahan quotes ke andar values paste kar sakte ho:
-BOT_TOKEN = cfg("BOT_TOKEN", "8713306596:AAEmmdHL26eEKpUePlQ8ZkSHTHolXOPFF14")          # BotFather se token
+BOT_TOKEN = cfg("BOT_TOKEN", "8684366725:AAGIAPh7HeTpr1jlSjhF6IQeapg7s4xPXF8")          # BotFather se token
 API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf number)
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
-LOG_CHAT_ID = cfg("LOG_CHAT_ID", "-1004382956557")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
+LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "1111"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
@@ -269,6 +269,7 @@ async def make_session():
 
 def main():
     global client
+    logging.info("=== Don Escrow bot v3 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
