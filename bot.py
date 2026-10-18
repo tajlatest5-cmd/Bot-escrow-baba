@@ -1,4 +1,12 @@
+"""
+Don Escrow Service bot - single file.
 
+Sirf 2 files: bot.py + requirements.txt
+
+1) Neeche CONFIG mein values paste karo (ya hosting ke Variables mein daalo).
+2) Session string nikalne ke liye (ek baar, apne computer par):  python bot.py session
+3) Bot chalane ke liye:  python bot.py
+"""
 import os
 import sys
 import asyncio
@@ -33,7 +41,7 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "999999999"))  # ek link par max log
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 # Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
 ESCROW_USERNAMES = {
@@ -230,7 +238,9 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reason = f"Too many requests. Please try again after about {mins} minute(s)."
         else:
             reason = "Group could not be created. Please try again or contact @XdonZ."
-        await status.edit_text(f"{e('cross')} {reason}", parse_mode=HTML)
+        debug = html.escape(f"{type(err).__name__}: {err}"[:200])
+        await status.edit_text(
+            f"{e('cross')} {reason}\n\n<code>[v10] {debug}</code>", parse_mode=HTML)
         return
 
     await render(lambda icons: status.edit_text(
@@ -335,7 +345,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v9 starting ===")
+    logging.info("=== Don Escrow bot v10 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
