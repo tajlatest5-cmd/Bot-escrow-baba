@@ -38,7 +38,7 @@ COOLDOWN = 60  # seconds, ek user ke do group ke beech
 # Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
 ESCROW_USERNAMES = {
     u.strip().lstrip("@").lower()
-    for u in cfg("ESCROW_USERNAMES", "@XdonZ").split(",") if u.strip()
+    for u in cfg("ESCROW_USERNAMES", "xDonEscrow").split(",") if u.strip()
 }
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
@@ -243,7 +243,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id,
             f"{e('shield')} <b>{label} Deal #{deal_id}</b>\n\n"
             f"{e('user')} Created by: {mention}\n"
-            f"{e('info')} Please add the Buyer, Seller and Escrow in this group.",
+            f"{e('info')} Please add the Buyer and Seller in this group.",
             parse_mode=HTML,
         )
     except Exception:
@@ -261,26 +261,29 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Buyer, seller aur escrow add hote hi ESCROW DEAL form bhejta hai (ek baar)."""
+    """Buyer aur seller (2 log) join hote hi ESCROW DEAL form bhejta hai (ek baar)."""
     chat = update.effective_chat
     if not chat or "Deal #" not in (chat.title or ""):
         return
 
     deals = context.bot_data.setdefault("deals", {})
-    st = deals.setdefault(chat.id, {"humans": set(), "escrow": False, "sent": False})
+    st = deals.setdefault(chat.id, {"humans": set(), "sent": False})
     if st["sent"]:
         return
 
     for m in update.message.new_chat_members:
-        if (m.username or "").lower() in ESCROW_USERNAMES:
-            st["escrow"] = True
-        elif not m.is_bot:
-            st["humans"].add(m.id)
+        if m.is_bot or (m.username or "").lower() in ESCROW_USERNAMES:
+            continue  # bot aur escrow ko buyer/seller nahi ginte
+        st["humans"].add(m.id)
 
-    # escrow + kam se kam 2 log (buyer aur seller)
-    if st["escrow"] and len(st["humans"]) >= 2:
+    if len(st["humans"]) >= 2:
         st["sent"] = True
-        await context.bot.send_message(chat.id, deal_form_text())
+        form = await context.bot.send_message(chat.id, deal_form_text())
+        await context.bot.send_message(
+            chat.id,
+            "Buyer and Seller, please fill the above form.",
+            reply_to_message_id=form.message_id,
+        )
 
 
 async def post_init(app: Application):
@@ -309,7 +312,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v6 starting ===")
+    logging.info("=== Don Escrow bot v7 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
