@@ -11,7 +11,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, ContextTypes,
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler,
+    ContextTypes, filters,
 )
 from telethon import TelegramClient, utils
 from telethon.sessions import StringSession
@@ -32,8 +33,13 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "1111"))  # ek link par max log
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "1000000"))  # ek link par max log
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
+# Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
+ESCROW_USERNAMES = {
+    u.strip().lstrip("@").lower()
+    for u in cfg("ESCROW_USERNAMES", "@XdonZ").split(",") if u.strip()
+}
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 HTML = ParseMode.HTML
@@ -133,6 +139,19 @@ def select_text() -> str:
     return f"{e('shield')} <b>Please select your escrow type from below.</b>"
 
 
+def deal_form_text() -> str:
+    return (
+        "ESCROW DEAL\n\n"
+        "• SELLER : \n\n"
+        "• BUYER : \n\n"
+        "• DEAL DETAIL : \n\n"
+        "• DEAL AMOUNT : \n\n"
+        "• EXPECTED TIME TO COMPLETE DEAL : \n\n"
+        "• T/C (IF ANY) : \n\n"
+        "• ESCROW MORE THAN ESCROWER LIMIT AT YOUR OWN RISK"
+    )
+
+
 # ======================= KEYBOARDS =======================
 def btn(label, icon, icons, url=None, cb=None) -> InlineKeyboardButton:
     kw = {"api_kwargs": {"icon_custom_emoji_id": eid(icon)}} if icons else {}
@@ -220,7 +239,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chat_id,
             f"{e('shield')} <b>{label} Deal #{deal_id}</b>\n\n"
             f"{e('user')} Created by: {mention}\n"
-            f"{e('info')} Please add the other party and share the deal details here.",
+            f"{e('info')} Please add the Buyer, Seller and Escrow in this group.",
             parse_mode=HTML,
         )
     except Exception:
@@ -235,6 +254,29 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception:
             logging.exception("log message failed")
+
+
+async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Buyer, seller aur escrow add hote hi ESCROW DEAL form bhejta hai (ek baar)."""
+    chat = update.effective_chat
+    if not chat or "Deal #" not in (chat.title or ""):
+        return
+
+    deals = context.bot_data.setdefault("deals", {})
+    st = deals.setdefault(chat.id, {"humans": set(), "escrow": False, "sent": False})
+    if st["sent"]:
+        return
+
+    for m in update.message.new_chat_members:
+        if (m.username or "").lower() in ESCROW_USERNAMES:
+            st["escrow"] = True
+        elif not m.is_bot:
+            st["humans"].add(m.id)
+
+    # escrow + kam se kam 2 log (buyer aur seller)
+    if st["escrow"] and len(st["humans"]) >= 2:
+        st["sent"] = True
+        await context.bot.send_message(chat.id, deal_form_text())
 
 
 async def post_init(app: Application):
@@ -261,7 +303,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v3 starting ===")
+    logging.info("=== Don Escrow bot v4 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
@@ -287,6 +329,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(escrow, pattern=r"^escrow$"))
     app.add_handler(CallbackQueryHandler(deal, pattern=r"^deal:(p2p|product)$"))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_join))
     app.run_polling()
 
 
