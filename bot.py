@@ -8,6 +8,7 @@ Sirf 2 files: bot.py + requirements.txt
 3) Bot chalane ke liye:  python bot.py
 """
 import os
+import re
 import sys
 import asyncio
 import time
@@ -24,7 +25,9 @@ from telegram.ext import (
 )
 from telethon import TelegramClient, utils, errors
 from telethon.sessions import StringSession
-from telethon.tl.functions.channels import CreateChannelRequest, InviteToChannelRequest
+from telethon.tl.functions.channels import (
+    CreateChannelRequest, InviteToChannelRequest, LeaveChannelRequest,
+)
 from telethon.tl.functions.messages import ExportChatInviteRequest
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +44,8 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-INVITE_LIMIT = int(cfg("INVITE_LIMIT", "3"))  # ek link par max log
+INVITE_LIMIT = int(cfg("INVITE_LIMIT", "2"))  # ek link par max log (buyer + seller)
+USERBOT_LEAVE = cfg("USERBOT_LEAVE", "1") == "1"  # buyer+seller aane ke baad userbot group chhod de
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
 # Escrow ke username (comma se alag, @ ke bina). Ye group mein add hote hi form aata hai.
 ESCROW_USERNAMES = {
@@ -50,6 +54,19 @@ ESCROW_USERNAMES = {
 }
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
+
+# Form bharne ke baad payment ke liye crypto options: (button label, code)
+PAY_OPTIONS = [
+    ("USDT (TRC20)", "usdt_trc20"), ("USDT (BEP20)", "usdt_bep20"),
+    ("BTC", "btc"), ("ETH", "eth"),
+    ("LTC", "ltc"), ("TRX", "trx"),
+]
+PAY_LABELS = {code: label for label, code in PAY_OPTIONS}
+
+# Form ke ye fields bharna zaroori hai (T/C optional hai)
+REQUIRED_FIELDS = [
+    "SELLER", "BUYER", "DEAL DETAIL", "DEAL AMOUNT", "EXPECTED TIME TO COMPLETE DEAL",
+]
 HTML = ParseMode.HTML
 
 # ======================= CUSTOM EMOJI =======================
@@ -111,11 +128,26 @@ client = None  # post_init mein banega
 USERBOT_ID = None  # userbot account ki id (ginti mein nahi aata)
 
 
+def deal_title(label: str, deal_id: str) -> str:
+    """'P2P Deal #ID' / 'Product Deal #ID'"""
+    name = label if label.endswith("Deal") else f"{label} Deal"
+    return f"{name} #{deal_id}"
+
+
+async def leave_group(chat_id: int):
+    """Userbot group chhod deta hai taaki group mein sirf bot + buyer + seller rahein."""
+    try:
+        await client(LeaveChannelRequest(await client.get_input_entity(chat_id)))
+        logging.info("userbot left %s", chat_id)
+    except Exception:
+        logging.exception("userbot leave failed")
+
+
 async def create_deal_group(bot_username: str, label: str):
     """Naya private group banata hai. Returns (bot_chat_id, invite_link, deal_id)."""
     deal_id = uuid.uuid4().hex[:6].upper()
     result = await client(CreateChannelRequest(
-        title=f"{label} Deal #{deal_id}",
+        title=deal_title(label, deal_id),
         about="Don Escrow Service - private deal group",
         megagroup=True,
     ))
@@ -240,7 +272,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reason = "Group could not be created. Please try again or contact @XdonZ."
         debug = html.escape(f"{type(err).__name__}: {err}"[:200])
         await status.edit_text(
-            f"{e('cross')} {reason}\n\n<code>[v10] {debug}</code>", parse_mode=HTML)
+            f"{e('cross')} {reason}\n\n<code>[v11] {debug}</code>", parse_mode=HTML)
         return
 
     await render(lambda icons: status.edit_text(
@@ -254,9 +286,10 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             chat_id,
-            f"{e('shield')} <b>{label} Deal #{deal_id}</b>\n\n"
+            f"{e('shield')} <b>{deal_title(label, deal_id)}</b>\n\n"
             f"{e('user')} Created by: {mention}\n"
-            f"{e('info')} Please add the Buyer and Seller in this group.",
+            f"{e('info')} Please add the Buyer and Seller in this group.\n\n"
+            f"{e('arrow')} Type /ready to get the deal form.",
             parse_mode=HTML,
         )
     except Exception:
@@ -266,7 +299,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             await context.bot.send_message(
                 LOG_CHAT_ID,
-                f"New {label} deal #{deal_id} by {mention} (id {user.id})\n{link}",
+                f"New {deal_title(label, deal_id)} by {mention} (id {user.id})\n{link}",
                 parse_mode=HTML, disable_web_page_preview=True,
             )
         except Exception:
@@ -274,29 +307,140 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def register_join(chat, users, context: ContextTypes.DEFAULT_TYPE):
-    """Buyer aur seller (2 log) join hote hi ESCROW DEAL form bhejta hai (ek baar)."""
+    """Buyer aur seller join hone par userbot group chhod deta hai."""
     if not chat or "Deal #" not in (chat.title or ""):
         return
 
-    deals = context.bot_data.setdefault("deals", {})
-    st = deals.setdefault(chat.id, {"humans": set(), "sent": False})
-    if st["sent"]:
-        return
-
+    st = deal_state(context, chat.id)
     for m in users:
-        if m.is_bot or m.id == USERBOT_ID or (m.username or "").lower() in ESCROW_USERNAMES:
-            continue  # bot, userbot aur escrow ko buyer/seller nahi ginte
+        if m.is_bot or m.id == USERBOT_ID:
+            continue
         st["humans"].add(m.id)
 
     logging.info("deal %s humans=%s", chat.id, st["humans"])
-    if len(st["humans"]) >= 2:
-        st["sent"] = True
-        form = await context.bot.send_message(chat.id, deal_form_text())
-        await context.bot.send_message(
-            chat.id,
-            "Buyer and Seller, please fill the above form.",
-            reply_to_message_id=form.message_id,
+    if USERBOT_LEAVE and len(st["humans"]) >= 2 and not st["userbot_left"]:
+        st["userbot_left"] = True
+        await leave_group(chat.id)
+
+
+def deal_state(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> dict:
+    deals = context.bot_data.setdefault("deals", {})
+    return deals.setdefault(chat_id, {
+        "humans": set(), "userbot_left": False,
+        "form_msg_id": None, "pay_asked": False, "crypto": None, "form_text": "",
+    })
+
+
+def is_deal_chat(chat) -> bool:
+    return bool(chat and "Deal #" in (chat.title or ""))
+
+
+def parse_form(text: str) -> dict:
+    """Message se form ke fields nikalta hai. Returns {FIELD: value}."""
+    out = {}
+    for key in REQUIRED_FIELDS:
+        m = re.search(rf"^[^\w\n]*{re.escape(key)}[ \t]*:[ \t]*(.*)$", text, re.I | re.M)
+        out[key] = (m.group(1).strip() if m else None)
+    return out
+
+
+async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/ready likhne par ESCROW DEAL form aata hai."""
+    chat = update.effective_chat
+    if not is_deal_chat(chat):
+        return
+    st = deal_state(context, chat.id)
+    if st["form_msg_id"]:
+        await update.message.reply_text(
+            "The deal form is already sent above. Please fill it and send it here.",
+            reply_to_message_id=st["form_msg_id"],
         )
+        return
+    form = await context.bot.send_message(chat.id, deal_form_text())
+    st["form_msg_id"] = form.message_id
+    await context.bot.send_message(
+        chat.id,
+        "Buyer or Seller, please copy the form above, fill it and send it here.",
+        reply_to_message_id=form.message_id,
+    )
+
+
+async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Bhara hua form aate hi crypto payment ka sawal poochta hai."""
+    msg = update.message
+    chat = update.effective_chat
+    if not msg or not msg.text or not is_deal_chat(chat):
+        return
+    text = msg.text
+    up = text.upper()
+    if not ("DEAL AMOUNT" in up and "SELLER" in up and "BUYER" in up):
+        return  # ye form nahi hai
+
+    st = deal_state(context, chat.id)
+    if st["pay_asked"]:
+        return
+
+    fields = parse_form(text)
+    missing = [k for k, v in fields.items() if not v]
+    if missing:
+        await msg.reply_text(
+            "Please fill all the details in the form. Missing: " + ", ".join(missing),
+            reply_to_message_id=msg.message_id,
+        )
+        return
+
+    st["pay_asked"] = True
+    st["form_text"] = text
+    rows = []
+    for i in range(0, len(PAY_OPTIONS), 2):
+        rows.append([("pay:" + c, l) for l, c in PAY_OPTIONS[i:i + 2]])
+
+    def kb(icons):
+        return InlineKeyboardMarkup([[btn(l, "bolt", icons, cb=cb) for cb, l in row] for row in rows])
+
+    await render(lambda icons: context.bot.send_message(
+        chat.id,
+        f"{e('briefcase')} <b>Which crypto would you like to pay in?</b>",
+        parse_mode=HTML, reply_markup=kb(icons), reply_to_message_id=msg.message_id,
+    ))
+
+
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    chat = q.message.chat
+    if not is_deal_chat(chat):
+        await q.answer()
+        return
+    st = deal_state(context, chat.id)
+    if st["crypto"]:
+        await q.answer(f"Already selected: {st['crypto']}", show_alert=True)
+        return
+
+    label = PAY_LABELS.get(q.data.split(":")[1])
+    if not label:
+        await q.answer()
+        return
+    st["crypto"] = label
+    await q.answer()
+
+    user = q.from_user
+    mention = f'<a href="tg://user?id={user.id}">{html.escape(user.first_name or "User")}</a>'
+    await q.message.edit_text(
+        f"{e('check')} <b>Crypto selected:</b> {label}\n"
+        f"{e('user')} Selected by: {mention}",
+        parse_mode=HTML,
+    )
+    await context.bot.send_message(chat.id, "Payment details will be shared here shortly.")
+
+    if LOG_CHAT_ID:
+        try:
+            await context.bot.send_message(
+                LOG_CHAT_ID,
+                f"Deal ready for payment\nGroup: {chat.title} ({chat.id})\n"
+                f"Crypto: {label}\n\n{st['form_text']}"[:3900],
+            )
+        except Exception:
+            logging.exception("log message failed")
 
 
 async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -345,7 +489,7 @@ async def make_session():
 
 def main():
     global client
-    logging.info("=== Don Escrow bot v10 starting ===")
+    logging.info("=== Don Escrow bot v11 starting ===")
 
     if len(sys.argv) > 1 and sys.argv[1] == "session":
         asyncio.run(make_session())
@@ -369,6 +513,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(escrow, pattern=r"^escrow$"))
     app.add_handler(CallbackQueryHandler(deal, pattern=r"^deal:(p2p|product)$"))
+    app.add_handler(CommandHandler("ready", ready, filters=filters.ChatType.GROUPS))
+    app.add_handler(CallbackQueryHandler(pay, pattern=r"^pay:[a-z0-9_]+$"))
+    app.add_handler(MessageHandler(
+        filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND, on_text))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_join))
     app.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER))
     app.run_polling(allowed_updates=Update.ALL_TYPES)
