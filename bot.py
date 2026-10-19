@@ -64,10 +64,10 @@ DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 PAY_ADDRESSES = {
     "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
     "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
-    "btc":        ("BTC",          cfg("ADDR_BTC", "")),
-    "eth":        ("ETH",          cfg("ADDR_ETH", "")),
-    "ltc":        ("LTC",          cfg("ADDR_LTC", "")),
-    "trx":        ("TRX",          cfg("ADDR_TRX", "")),
+    "btc":        ("BTC",          cfg("ADDR_BTC", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "eth":        ("ETH",          cfg("ADDR_ETH", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "ltc":        ("LTC",          cfg("ADDR_LTC", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "trx":        ("TRX",          cfg("ADDR_TRX", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
 }
 # Buttons: (label, code) sirf un options ke jinka address set hai
 PAY_OPTIONS = [(label, code) for code, (label, addr) in PAY_ADDRESSES.items() if addr]
