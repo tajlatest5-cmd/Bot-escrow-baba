@@ -21,7 +21,7 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
-    ChatMemberHandler, ContextTypes, filters,
+    ChatMemberHandler, ContextTypes, PicklePersistence, filters,
 )
 from telethon import TelegramClient, utils, errors
 from telethon.sessions import StringSession
@@ -44,6 +44,8 @@ API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf num
 API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
 USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
+_admin_raw = cfg("ADMIN_GROUP_ID", "-5514040923")    # admin group ki ID (group mein /id likho to milegi)
+ADMIN_GROUP_ID = int(_admin_raw) if re.fullmatch(r"-?\d+", _admin_raw) else None
 INVITE_LIMIT = int(cfg("INVITE_LIMIT", "2"))  # ek link par max log (buyer + seller)
 USERBOT_LEAVE = cfg("USERBOT_LEAVE", "1") == "1"  # buyer+seller aane ke baad userbot group chhod de
 COOLDOWN = 60  # seconds, ek user ke do group ke beech
@@ -55,12 +57,20 @@ ESCROW_USERNAMES = {
 
 DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 
-# Form bharne ke baad payment ke liye crypto options: (button label, code)
-PAY_OPTIONS = [
-    ("USDT (TRC20)", "usdt_trc20"), ("USDT (BEP20)", "usdt_bep20"),
-    ("BTC", "btc"), ("ETH", "eth"),
-    ("LTC", "ltc"), ("TRX", "trx"),
-]
+# ======= PAYMENT ADDRESSES =======
+# Yahan apne wallet address quotes ke andar paste karo (ya Railway Variables mein ADDR_... daalo).
+# Jis option ka address khaali chhodoge wo buttons mein dikhega hi nahi.
+# Sirf wahi options aayenge jinka address aapne daala hai.
+PAY_ADDRESSES = {
+    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "btc":        ("BTC",          cfg("ADDR_BTC", "")),
+    "eth":        ("ETH",          cfg("ADDR_ETH", "")),
+    "ltc":        ("LTC",          cfg("ADDR_LTC", "")),
+    "trx":        ("TRX",          cfg("ADDR_TRX", "")),
+}
+# Buttons: (label, code) sirf un options ke jinka address set hai
+PAY_OPTIONS = [(label, code) for code, (label, addr) in PAY_ADDRESSES.items() if addr]
 PAY_LABELS = {code: label for label, code in PAY_OPTIONS}
 
 # Form ke ye fields bharna zaroori hai (T/C optional hai)
@@ -272,7 +282,7 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reason = "Group could not be created. Please try again or contact @XdonZ."
         debug = html.escape(f"{type(err).__name__}: {err}"[:200])
         await status.edit_text(
-            f"{e('cross')} {reason}\n\n<code>[v11] {debug}</code>", parse_mode=HTML)
+            f"{e('cross')} {reason}\n\n<code>[v13] {debug}</code>", parse_mode=HTML)
         return
 
     await render(lambda icons: status.edit_text(
@@ -306,6 +316,54 @@ async def deal(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logging.exception("log message failed")
 
 
+async def admin_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin group mein Payment Received / Not Received button."""
+    q = update.callback_query
+    if ADMIN_GROUP_ID is None or q.message.chat.id != ADMIN_GROUP_ID:
+        await q.answer("Not allowed.", show_alert=True)
+        return
+
+    _, action, cid = q.data.split(":")
+    cid = int(cid)
+    st = deal_state(context, cid)
+    if st["paid"]:
+        await q.answer("Already confirmed.", show_alert=True)
+        return
+
+    admin = q.from_user
+    who = f'<a href="tg://user?id={admin.id}">{html.escape(admin.first_name or "Admin")}</a>'
+    title = html.escape(st["title"] or str(cid))
+    st["admin_msg_id"] = None
+
+    if action == "ok":
+        st["paid"] = True
+        await q.answer("Confirmed.")
+        await q.message.edit_text(
+            f"{e('check')} <b>Payment received - confirmed</b>\n\nDeal: {title}\nConfirmed by: {who}",
+            parse_mode=HTML,
+        )
+        await context.bot.send_message(
+            cid, f"{e('check')} <b>Payment received</b>", parse_mode=HTML)
+    else:
+        await q.answer("Marked as not received.")
+        await q.message.edit_text(
+            f"{e('cross')} <b>Payment not received</b>\n\nDeal: {title}\nMarked by: {who}",
+            parse_mode=HTML,
+        )
+        await context.bot.send_message(
+            cid,
+            f"{e('cross')} Payment not received yet. Please check and share the correct "
+            f"screenshot and transaction ID.",
+            parse_mode=HTML,
+        )
+
+
+async def show_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/id - is chat ki ID batata hai (ADMIN_GROUP_ID ke liye)."""
+    await update.message.reply_text(
+        f"Chat ID: <code>{update.effective_chat.id}</code>", parse_mode=HTML)
+
+
 async def register_join(chat, users, context: ContextTypes.DEFAULT_TYPE):
     """Buyer aur seller join hone par userbot group chhod deta hai."""
     if not chat or "Deal #" not in (chat.title or ""):
@@ -325,10 +383,15 @@ async def register_join(chat, users, context: ContextTypes.DEFAULT_TYPE):
 
 def deal_state(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> dict:
     deals = context.bot_data.setdefault("deals", {})
-    return deals.setdefault(chat_id, {
-        "humans": set(), "userbot_left": False,
-        "form_msg_id": None, "pay_asked": False, "crypto": None, "form_text": "",
-    })
+    st = deals.setdefault(chat_id, {})
+    defaults = {
+        "humans": set(), "userbot_left": False, "form_msg_id": None,
+        "pay_asked": False, "crypto": None, "form_text": "", "title": "",
+        "paid": False, "admin_msg_id": None,
+    }
+    for k, v in defaults.items():
+        st.setdefault(k, v)
+    return st
 
 
 def is_deal_chat(chat) -> bool:
@@ -365,22 +428,9 @@ async def ready(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_form(msg, chat, st, context):
     """Bhara hua form aate hi crypto payment ka sawal poochta hai."""
-    msg = update.message
-    chat = update.effective_chat
-    if not msg or not msg.text or not is_deal_chat(chat):
-        return
-    text = msg.text
-    up = text.upper()
-    if not ("DEAL AMOUNT" in up and "SELLER" in up and "BUYER" in up):
-        return  # ye form nahi hai
-
-    st = deal_state(context, chat.id)
-    if st["pay_asked"]:
-        return
-
-    fields = parse_form(text)
+    fields = parse_form(msg.text)
     missing = [k for k, v in fields.items() if not v]
     if missing:
         await msg.reply_text(
@@ -390,7 +440,13 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     st["pay_asked"] = True
-    st["form_text"] = text
+    st["form_text"] = msg.text
+    st["title"] = chat.title or ""
+    if not PAY_OPTIONS:
+        logging.warning("Koi payment address set nahi hai (ADDR_... variables).")
+        await msg.reply_text("Payment details will be shared here shortly.",
+                             reply_to_message_id=msg.message_id)
+        return
     rows = []
     for i in range(0, len(PAY_OPTIONS), 2):
         rows.append([("pay:" + c, l) for l, c in PAY_OPTIONS[i:i + 2]])
@@ -405,122 +461,66 @@ async def on_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ))
 
 
-async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    chat = q.message.chat
-    if not is_deal_chat(chat):
-        await q.answer()
+async def handle_proof(msg, chat, st, context):
+    """Crypto select hone ke baad group mein jo bhi aaye (screenshot, txn ID) admin group mein bhejta hai."""
+    if ADMIN_GROUP_ID is None:
+        logging.warning("ADMIN_GROUP_ID set nahi hai, proof forward nahi hua.")
+        return
+
+    try:
+        await context.bot.forward_message(ADMIN_GROUP_ID, chat.id, msg.message_id)
+    except Exception:
+        try:
+            await context.bot.copy_message(ADMIN_GROUP_ID, chat.id, msg.message_id)
+        except Exception:
+            logging.exception("proof forward failed")
+            return
+
+    # purana control message hata ke naya bhejo, taaki buttons hamesha sabse neeche rahein
+    if st["admin_msg_id"]:
+        try:
+            await context.bot.delete_message(ADMIN_GROUP_ID, st["admin_msg_id"])
+        except Exception:
+            pass
+
+    title = html.escape(st["title"] or chat.title or "")
+    summary = html.escape(st["form_text"])[:2500]
+    control = None
+
+    async def send(icons):
+        nonlocal control
+        control = await context.bot.send_message(
+            ADMIN_GROUP_ID,
+            f"{e('briefcase')} <b>Payment proof received</b>\n\n"
+            f"Deal: {title}\nCrypto: {html.escape(st['crypto'] or '-')}\n\n"
+            f"{summary}\n\n"
+            f"Please check the payment and confirm.",
+            parse_mode=HTML,
+            reply_markup=InlineKeyboardMarkup([[
+                btn("Payment Received", "check", icons, cb=f"adm:ok:{chat.id}"),
+                btn("Not Received", "cross", icons, cb=f"adm:no:{chat.id}"),
+            ]]),
+        )
+        return control
+
+    await render(send)
+    if control:
+        st["admin_msg_id"] = control.message_id
+
+
+async def on_group_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    chat = update.effective_chat
+    if not msg or not is_deal_chat(chat):
         return
     st = deal_state(context, chat.id)
-    if st["crypto"]:
-        await q.answer(f"Already selected: {st['crypto']}", show_alert=True)
-        return
 
-    label = PAY_LABELS.get(q.data.split(":")[1])
-    if not label:
-        await q.answer()
-        return
-    st["crypto"] = label
-    await q.answer()
+    # 1) bhara hua form
+    if msg.text and not st["pay_asked"]:
+        up = msg.text.upper()
+        if "DEAL AMOUNT" in up and "SELLER" in up and "BUYER" in up:
+            await handle_form(msg, chat, st, context)
+            return
 
-    user = q.from_user
-    mention = f'<a href="tg://user?id={user.id}">{html.escape(user.first_name or "User")}</a>'
-    await q.message.edit_text(
-        f"{e('check')} <b>Crypto selected:</b> {label}\n"
-        f"{e('user')} Selected by: {mention}",
-        parse_mode=HTML,
-    )
-    await context.bot.send_message(chat.id, "Payment details will be shared here shortly.")
-
-    if LOG_CHAT_ID:
-        try:
-            await context.bot.send_message(
-                LOG_CHAT_ID,
-                f"Deal ready for payment\nGroup: {chat.title} ({chat.id})\n"
-                f"Crypto: {label}\n\n{st['form_text']}"[:3900],
-            )
-        except Exception:
-            logging.exception("log message failed")
-
-
-async def on_join(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Service message 'joined the group' se (agar Telegram bhejta hai)."""
-    await register_join(update.effective_chat, update.message.new_chat_members, context)
-
-
-async def on_member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """chat_member update se: invite link se join karne par bhi pakad leta hai."""
-    cm = update.chat_member
-    if not cm:
-        return
-    joined = (
-        cm.old_chat_member.status in ("left", "kicked")
-        and cm.new_chat_member.status in ("member", "administrator", "creator", "restricted")
-    )
-    if joined:
-        await register_join(update.effective_chat, [cm.new_chat_member.user], context)
-
-
-async def post_init(app: Application):
-    global client
-    client = TelegramClient(StringSession(USERBOT_SESSION), int(API_ID), API_HASH)
-    await client.connect()
-    if not await client.is_user_authorized():
-        raise RuntimeError("USERBOT_SESSION invalid hai. gen_session.py dobara chalao.")
-    global USERBOT_ID
-    USERBOT_ID = (await client.get_me()).id
-    logging.info("Userbot connected.")
-
-
-async def post_shutdown(app: Application):
-    await client.disconnect()
-
-
-# ======================= MAIN =======================
-async def make_session():
-    """Userbot account login karke USERBOT_SESSION string print karta hai."""
-    api_id = int(input("API_ID: ").strip())
-    api_hash = input("API_HASH: ").strip()
-    c = TelegramClient(StringSession(), api_id, api_hash)
-    await c.start()  # phone number aur OTP puchega
-    print("\nUSERBOT_SESSION =", c.session.save())
-    await c.disconnect()
-
-
-def main():
-    global client
-    logging.info("=== Don Escrow bot v11 starting ===")
-
-    if len(sys.argv) > 1 and sys.argv[1] == "session":
-        asyncio.run(make_session())
-        return
-
-    missing = [
-        name for name, val in [
-            ("BOT_TOKEN", BOT_TOKEN), ("API_ID", API_ID),
-            ("API_HASH", API_HASH), ("USERBOT_SESSION", USERBOT_SESSION),
-        ] if not val
-    ]
-    if missing:
-        sys.exit("Ye environment variables missing hain: " + ", ".join(missing))
-    if not API_ID.isdigit():
-        sys.exit("API_ID sirf number hona chahiye (jaise 12345678).")
-
-    app = (
-        Application.builder().token(BOT_TOKEN)
-        .post_init(post_init).post_shutdown(post_shutdown).build()
-    )
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(escrow, pattern=r"^escrow$"))
-    app.add_handler(CallbackQueryHandler(deal, pattern=r"^deal:(p2p|product)$"))
-    app.add_handler(CommandHandler("ready", ready, filters=filters.ChatType.GROUPS))
-    app.add_handler(CallbackQueryHandler(pay, pattern=r"^pay:[a-z0-9_]+$"))
-    app.add_handler(MessageHandler(
-        filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND, on_text))
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, on_join))
-    app.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER))
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-
-if __name__ == "__main__":
-    main()
+    # 2) payment proof (crypto select hone ke baad, admin confirm hone tak)
+    if st["crypto"] and not st["paid
