@@ -39,12 +39,12 @@ def cfg(name: str, default: str = "") -> str:
 
 
 # Yahan quotes ke andar values paste kar sakte ho:
-BOT_TOKEN = cfg("BOT_TOKEN", "")          # BotFather se token
-API_ID = cfg("API_ID", "")                # my.telegram.org se (sirf number)
-API_HASH = cfg("API_HASH", "")            # my.telegram.org se
-USERBOT_SESSION = cfg("USERBOT_SESSION", "")  # python bot.py session se mili string
+BOT_TOKEN = cfg("BOT_TOKEN", "8684366725:AAGIAPh7HeTpr1jlSjhF6IQeapg7s4xPXF8")          # BotFather se token
+API_ID = cfg("API_ID", "34145046")                # my.telegram.org se (sirf number)
+API_HASH = cfg("API_HASH", "9eef1f689e6bde55fa0240660f7222ca")            # my.telegram.org se
+USERBOT_SESSION = cfg("USERBOT_SESSION", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA=")  # python bot.py session se mili string
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "")      # optional: naye deal ki info is chat mein
-_admin_raw = cfg("ADMIN_GROUP_ID", "")    # admin group ki ID (group mein /id likho to milegi)
+_admin_raw = cfg("ADMIN_GROUP_ID", "-5514040923")    # admin group ki ID (group mein /id likho to milegi)
 ADMIN_GROUP_ID = int(_admin_raw) if re.fullmatch(r"-?\d+", _admin_raw) else None
 INVITE_LIMIT = int(cfg("INVITE_LIMIT", "2"))  # ek link par max log (buyer + seller)
 USERBOT_LEAVE = cfg("USERBOT_LEAVE", "1") == "1"  # buyer+seller aane ke baad userbot group chhod de
@@ -62,12 +62,12 @@ DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 # Jis option ka address khaali chhodoge wo buttons mein dikhega hi nahi.
 # Sirf wahi options aayenge jinka address aapne daala hai.
 PAY_ADDRESSES = {
-    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "")),
-    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "")),
-    "btc":        ("BTC",          cfg("ADDR_BTC", "")),
-    "eth":        ("ETH",          cfg("ADDR_ETH", "")),
-    "ltc":        ("LTC",          cfg("ADDR_LTC", "")),
-    "trx":        ("TRX",          cfg("ADDR_TRX", "")),
+    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "btc":        ("BTC",          cfg("ADDR_BTC", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "eth":        ("ETH",          cfg("ADDR_ETH", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "ltc":        ("LTC",          cfg("ADDR_LTC", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "trx":        ("TRX",          cfg("ADDR_TRX", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
 }
 # Buttons: (label, code) sirf un options ke jinka address set hai
 PAY_OPTIONS = [(label, code) for code, (label, addr) in PAY_ADDRESSES.items() if addr]
