@@ -46,7 +46,7 @@ def cfg(name: str, default: str = "") -> str:
 
 
 # Yahan quotes ke andar values paste kar sakte ho:
-BOT_TOKEN = cfg("BOT_TOKEN", "8951155321:AAF_yGhPXQG1IsYkKTXw07CvOiUw0cirO_M")          # BotFather se token
+BOT_TOKEN = cfg("BOT_TOKEN", "8082719676:AAF7eeYH_JiuhoveVKCZu3_uyusiY6iGuac")          # BotFather se token
 API_ID = cfg("API_ID", "35426342")                # my.telegram.org se (sirf number)
 API_HASH = cfg("API_HASH", "c8790b1009744cce2ff60d2357bcc2a7")            # my.telegram.org se
 # 3-4 userbot accounts ki session strings (python bot.py session se). Har ek ko alag Variable do:
@@ -88,9 +88,9 @@ DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 # Jis option ka address khaali chhodoge wo buttons mein dikhega hi nahi.
 # Sirf wahi options aayenge jinka address aapne daala hai.
 PAY_ADDRESSES = {
-    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "")),
-    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "")),
-    "btc":        ("BTC",          cfg("ADDR_BTC", "")),
+    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "bep":        ("BEP",          cfg("ADDR_BEP", "0x5fb6cdce0b67fb68a1694278e8c0d3a3bd357457")),
     "eth":        ("ETH",          cfg("ADDR_ETH", "")),
     "ltc":        ("LTC",          cfg("ADDR_LTC", "")),
     "trx":        ("TRX",          cfg("ADDR_TRX", "")),
