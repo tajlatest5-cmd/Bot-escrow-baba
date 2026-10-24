@@ -46,7 +46,7 @@ def cfg(name: str, default: str = "") -> str:
 
 
 # Yahan quotes ke andar values paste kar sakte ho:
-BOT_TOKEN = cfg("BOT_TOKEN", "8082719676:AAFhShO_n3omO_mjTWz_zlSM1l4xa5r0QIo")          # BotFather se token
+BOT_TOKEN = cfg("BOT_TOKEN", "8082719676:AAErySBKAb1ynVYP9td81iqD3YNUbjVGqNQ")          # BotFather se token
 API_ID = cfg("API_ID", "38533338")                # my.telegram.org se (sirf number)
 API_HASH = cfg("API_HASH", "06c2d4d7cbece686976794b55047232e")            # my.telegram.org se
 # 3-4 userbot accounts ki session strings (python bot.py session se). Har ek ko alag Variable do:
