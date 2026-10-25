@@ -46,20 +46,20 @@ def cfg(name: str, default: str = "") -> str:
 
 
 # Yahan quotes ke andar values paste kar sakte ho:
-BOT_TOKEN = cfg("BOT_TOKEN", "")          # BotFather se token
-API_ID = cfg("API_ID", "")                # my.telegram.org se (sirf number)
-API_HASH = cfg("API_HASH", "")            # my.telegram.org se
+BOT_TOKEN = cfg("BOT_TOKEN", "8684366725:AAH23FEDhx8FFRPqdT_4UD8XmIr4dDC4Gqw")          # BotFather se token
+API_ID = cfg("API_ID", "35426342")                # my.telegram.org se (sirf number)
+API_HASH = cfg("API_HASH", "c8790b1009744cce2ff60d2357bcc2a7")            # my.telegram.org se
 # 3-4 userbot accounts ki session strings (python bot.py session se). Har ek ko alag Variable do:
 # USERBOT_SESSION, USERBOT_SESSION_2, USERBOT_SESSION_3, USERBOT_SESSION_4 ...
 # (ya ek hi Variable USERBOT_SESSIONS mein comma se alag-alag). Quotes ke andar yahan bhi paste kar sakte ho.
 SESSION_LIST = [
-    cfg("USERBOT_SESSION", ""), cfg("USERBOT_SESSION_2", ""), cfg("USERBOT_SESSION_3", ""),
+    cfg("USERBOT_SESSION", "1BVtsOK0Bu1H2_vm6CmGPfwlJpmA1U-koovBpBJW-_KXD1fQftvK3hzkX6W8XgSOt1RmTWI5wr10mKvogA2DxaXCEcJ3I2SxuwPozNqGg5DgrbjMv_BbtHgJzlHWpTYRCAtxzOD4alBAu008g-y-KGyyi_yq_05VENda7MUA1zdcXdo3zy2N43UsmPyNIOU6wcg8KjZ6F5r_r2nrqsnMzNsPBXniHOvpdGfM518Ut75B2R3KQrUZG3F681gNHm3kRSNtDExhCQRkmv_aH495vQ9gvxO-6BDYyrjsFfThVSB4E5cn3hhfEhrYzbQOqx0q6DfbIUAiFSPa6aLMumAit3Hr04J9vVfw="), cfg("USERBOT_SESSION_2", "1BVtsOK0Bu4UrPpiFfH70jeRwOblIKKSELnZRrp_4Zckq6FlRPBWoZtHibasLLRcUJEYIT_-MqSjnly9cxvn_p1bDWtsff9rIeN9V0v_Kh_aioWpKzGJBJ5Mr9EPhN1JtaG8y2arjUvUELIm1pINK-Nm2ZyL2o6ibkXtLURB2rSyvbgQ9OIw7WZlT-c_UcNIlV4eR5MhuEApJaxZUnM4PEWfQzxkqspdeVt1nMauCao5aHTlY5sMgHHTSc3tfZQ4yuv0XNlVNA1xnwfA5UtYhmn7qNb4VXmdYcfgpLWxVDxmQPYE1huKTOGt0fanovxmoDBxn1A_E3Nz25pkLF2pH0ZxCWC5oAVI="), cfg("USERBOT_SESSION_3", "1AZWarzQBuynh2jMmOumHufr10ekAqgnZ7hkNjzdxxIhbsNAl5y5u0HDd9p0_XcUJi295fuKnmXE7jZqV2rmwikZaDlsLOINBIBxegsDGpsZZ8QLc5Q0FWeC8W32VibhyAkqsMLarxxdCHkYJDkqppUPq-y0jNWAxOBHBGTdkqE9WhPjAq7ZCbyB5k9F4GHsxPDIyuo0TWZ9pxtw8vTqrM3CAlzphHligzz2iAL76KCRml_h4-ygcWCEsOI93ukfZ5BVtLmlEHKf8pvqB8GLuClCNuCQJpP3e47yLXd52c-ZwhKDqhN0F6kkR09zJ_s9zkTz9JFzZVe1y8Wp2_9w4DdKagZRDAuA="),
     cfg("USERBOT_SESSION_4", ""), cfg("USERBOT_SESSION_5", ""), cfg("USERBOT_SESSION_6", ""),
 ]
 SESSION_LIST += [x.strip() for x in cfg("USERBOT_SESSIONS", "").replace("\n", ",").split(",")]
 SESSION_LIST = list(dict.fromkeys(x for x in SESSION_LIST if x))  # khaali hatao, duplicate hatao
 LOG_CHAT_ID = cfg("LOG_CHAT_ID", "").strip('"\' ')  # optional: errors/alerts is chat mein (apna user ID)
-_admin_raw = cfg("ADMIN_GROUP_ID", "")    # admin group ki ID (group mein /id likho to milegi)
+_admin_raw = cfg("ADMIN_GROUP_ID", "-1004495890781")    # admin group ki ID (group mein /id likho to milegi)
 _admin_digits = re.sub(r"[^\d-]", "", _admin_raw)  # quotes / space / extra akshar hata do
 ADMIN_GROUP_ID = int(_admin_digits) if re.fullmatch(r"-?\d+", _admin_digits) else None
 INVITE_LIMIT = int(cfg("INVITE_LIMIT", "2"))  # ek link par max log (buyer + seller)
@@ -90,8 +90,8 @@ DEAL_TYPES = {"p2p": "P2P", "product": "Product Deal"}
 # Jis option ka address khaali chhodoge wo buttons mein dikhega hi nahi.
 # Sirf wahi options aayenge jinka address aapne daala hai.
 PAY_ADDRESSES = {
-    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "")),
-    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "")),
+    "usdt_trc20": ("USDT (TRC20)", cfg("ADDR_USDT_TRC20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
+    "usdt_bep20": ("USDT (BEP20)", cfg("ADDR_USDT_BEP20", "TJhJBir2MggnBbheDdyxWcMNvGDnihCvZA")),
     "btc":        ("BTC",          cfg("ADDR_BTC", "")),
     "eth":        ("ETH",          cfg("ADDR_ETH", "")),
     "ltc":        ("LTC",          cfg("ADDR_LTC", "")),
