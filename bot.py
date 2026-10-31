@@ -46,10 +46,10 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN","9116340475:AAEmRvbHQMW7z98ROg7exZPXaFIMD
 # --- SETTINGS (baaki settings) ---
 # Group ke ID. Test group jodna ho to comma lagakar uska ID likho,
 # jaise [-1004383728292, -100123456789]. ID /chatid se milta hai.
-GROUP_IDS = [-1004497823414]
+GROUP_IDS = [-1004475598233]
 
 # Sirf in IDs wale log /add aur /close chala sakte hain.
-ADMIN_IDS = [7133921832]
+ADMIN_IDS = [7133921832, 7133921832]
 
 # Admin panel (/admin) kis group mein chalega.
 # Admin group ki ID /chatid se milti hai, jaise [-1001234567890].
