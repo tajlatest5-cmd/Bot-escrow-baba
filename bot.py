@@ -23,7 +23,7 @@ from telegram.ext import (ApplicationBuilder, CommandHandler, MessageHandler,
 logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO)
 
 # ───────────────────────── CONFIG ─────────────────────────
-TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_BOT_TOKEN_HERE")
+TOKEN = os.getenv("BOT_TOKEN", "9118700169:AAFThrkpLOlNEm9DCKqKnV8g1MasmUTzzSM")
 OWNER_IDS = {123456789}            # apna Telegram user ID (owner ko har command ki permission)
 DATA_DIR = os.getenv("DATA_DIR", ".")  # Railway Volume lagao to DATA_DIR=/data rakho
 ANON = 1087968824                  # Telegram ka "anonymous admin" id
