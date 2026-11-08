@@ -13,9 +13,9 @@ from telegram.ext import (
 )
 
 # ================= SETTINGS =================
-TOKEN = os.getenv("BOT_TOKEN", "PASTE_BOT_TOKEN_HERE")
+TOKEN = os.getenv("BOT_TOKEN", "9080234676:AAEllP2SrA0aMF0y1y7V39vFKkKyrsS94BY")
 ADMIN_IDS = [7054168366]          # admins (aur IDs yahan add karo)
-GROUP_ID = None                   # deal cards is group me post hon (e.g. -100123...), None = same chat
+GROUP_ID = -1004418593335                   # deal cards is group me post hon (e.g. -100123...), None = same chat
 FEE_PERCENT = 3                   # user ke /sell wali NFT deal par fee %
 ADMIN_FEE = 0                     # admin ke /addnft par fee % (0 = koi fee nahi)
 CODE_CUR = "INR"                  # redeem code ki currency
@@ -25,9 +25,9 @@ BRAND = "@ZENOX0G"
 # Har currency ki alag payment detail. Deal jis currency me hai, user ko sirf wahi dikhegi.
 # Ek se zyada line chahiye toh \n se alag karo, har "label: value" ka value alag copy hota hai.
 PAY_INFO = {
-    "INR": "UPI: yourupi@bank",
-    "TON": "TON: UQxxxxxxxxxxxxxxxx",
-    "USDT": "USDT (TRC20): Txxxxxxxxxxxxxxxx",
+    "INR": "UPI: zaid1012@fam",
+    "TON": "TON: UQC3ZverQSFlO3rKujdHV-eDULKrzyGoBSFiLFq9lX3W8VMy",
+    "USDT": "USDT (TRC20): 0x236963E3044DD457C08e6F74adDfd3D7a3EfCE36",
 }
 DB_FILE = os.getenv("DB_FILE", "deals.json")   # Railway: Volume lagao, DB_FILE=/data/deals.json
 # ============================================
