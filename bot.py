@@ -13,9 +13,9 @@ from telegram.ext import (
 )
 
 # ================= SETTINGS =================
-TOKEN = os.getenv("BOT_TOKEN", "PASTE_BOT_TOKEN_HERE")
+TOKEN = os.getenv("BOT_TOKEN", "9080234676:AAEllP2SrA0aMF0y1y7V39vFKkKyrsS94BY")
 ADMIN_IDS = [7054168366]          # admins (aur IDs yahan add karo)
-GROUP_ID = None                   # deal cards is group me post hon (e.g. -100123...), None = same chat
+GROUP_ID = -1004418593335                   # deal cards is group me post hon (e.g. -100123...), None = same chat
 FEE_PERCENT = 3                   # user ke /sell wali NFT deal par fee %
 ADMIN_FEE = 0                     # admin ke /addnft par fee % (0 = koi fee nahi)
 CODE_CUR = "INR"                  # redeem code ki currency
