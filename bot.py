@@ -23,7 +23,7 @@ REDEEM_DISCOUNT = 10              # redeem code par discount %
 SELLER_DEAL_ENABLED = True        # False = sirf admin NFT add kar sakta hai (/addnft)
 BRAND = "@YourHandle"
 PAY_INFO = (
-    "UPI: yourupi@bank\n"
+    "UPI: zaid1012@fam"
     "TON: UQxxxxxxxxxxxxxxxx\n"
     "USDT (TRC20): Txxxxxxxxxxxxxxxx"
 )
