@@ -25,9 +25,9 @@ BRAND = "@ZENOX0G"
 # Har currency ki alag payment detail. Deal jis currency me hai, user ko sirf wahi dikhegi.
 # Ek se zyada line chahiye toh \n se alag karo, har "label: value" ka value alag copy hota hai.
 PAY_INFO = {
-    "INR": "UPI: yourupi@bank",
-    "TON": "TON: UQxxxxxxxxxxxxxxxx",
-    "USDT": "USDT (TRC20): Txxxxxxxxxxxxxxxx",
+    "INR": "UPI: zaid1012@fam",
+    "TON": "TON: UQC3ZverQSFlO3rKujdHV-eDULKrzyGoBSFiLFq9lX3W8VMy",
+    "USDT": "USDT (TRC20): 0x236963E3044DD457C08e6F74adDfd3D7a3EfCE36",
 }
 DB_FILE = os.getenv("DB_FILE", "deals.json")   # Railway: Volume lagao, DB_FILE=/data/deals.json
 # ============================================
